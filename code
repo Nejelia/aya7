@@ -1,0 +1,165 @@
+Program.cs
+using Lab07_Library;
+using System.Reflection;
+using System.Text;
+using System.Xml.Linq;
+
+namespace Lab07_App
+{
+    // Абстрактный класс, содержащий точку входа
+    abstract class Program
+    {
+        // Точка входа в программу
+        static void Main()
+        {
+            // Загрузка сборки с именем "Lab07_Library"
+            Assembly asm = Assembly.Load("Lab07_Library");
+
+            // Получение открытых типов из сборки
+            var types = asm.GetExportedTypes();
+
+            // Создание корневого элемента XML-документа
+            XElement program = new XElement("Program");
+
+            // Итерация по типам в сборке
+            foreach (var type in types)
+            {
+                // Создание элемента XML для каждого типа
+                XElement element = new XElement(type.Name);
+
+                // Если тип является перечислением
+                if (type.IsEnum)
+                {
+                    // Добавление комментария и значений перечисления
+                    element.Add(new XElement("MyComment", type.GetCustomAttribute<MyComment>()!.Comment));
+                    XElement enumValues = new XElement("Values");
+
+                    // Итерация по значениям перечисления и их добавление
+                    foreach (var t in type.GetEnumValues())
+                    {
+                        enumValues.Add(t + " ");
+                    }
+                    element.Add(enumValues);
+                }
+                else
+                {
+                    // Если тип не является перечислением
+                    if (type.Name == "MyComment")
+                    {
+                        // Добавление свойств и конструкторов для типа MyComment
+                        element.Add(new XElement("Properties", from t in type.GetProperties() select t.Name + " "),
+                            new XElement("Constructors", from t in type.GetConstructors() select t.DeclaringType + " "));
+                    }
+                    else
+                    {
+                        // Добавление комментария, свойств, конструкторов и методов для других типов
+                        element.Add(new XElement("MyComment", type.GetCustomAttribute<MyComment>()!.Comment),
+                            new XElement("Properties", from t in type.GetProperties() select t.Name + " "),
+                            new XElement("Constructors", from t in type.GetConstructors() select t.DeclaringType),
+                            new XElement("Methods",
+                                from t in type.GetMethods()
+                                where (!t.Name.StartsWith("get_") && !t.Name.StartsWith("set_"))
+                                select t.Name + " "));
+                    }
+                }
+
+                // Добавление элемента в корневой элемент программы
+                program.Add(element);
+            }
+Animal.cs
+// Пространство имен Lab07_Library
+namespace Lab07_Library
+{
+    // Атрибут MyComment, примененный к классу Animal, содержит комментарий "Base class Animal"
+    [MyComment("Base class Animal")]
+    // Определение класса Animal
+    public class Animal
+    {
+        // Свойство Country, представляющее страну, в которой обитает животное
+        public string? Country { get; set; }
+
+        // Свойство HideFromOtherAnimals, указывающее, прячется ли животное от других животных
+        public bool HideFromOtherAnimals { get; set; }
+
+        // Свойство Name, представляющее имя животного
+        public string? Name { get; set; }
+
+        // Свойство WhatAnimal, представляющее классификацию животного (перечисление eClassificationAnimal)
+        public eClassificationAnimal WhatAnimal { get; set; }
+
+        // Защищенный конструктор по умолчанию
+        protected Animal()
+        {
+        }
+
+        // Публичный конструктор, инициализирующий свойства класса
+        public Animal(string? country, bool hideFromOtherAnimals, string? name, eClassificationAnimal whatAnimal)
+        {
+            Country = country;
+            HideFromOtherAnimals = hideFromOtherAnimals;
+            Name = name;
+            WhatAnimal = whatAnimal;
+        }
+
+        // Метод GetClassificationAnimal возвращает классификацию животного
+        public eClassificationAnimal GetClassificationAnimal()
+        {
+            return WhatAnimal;
+        }
+
+        // Метод GetFavoriteFood возвращает любимую пищу животного на основе его классификации
+        public eFavoriteFood GetFavoriteFood()
+        {
+            return WhatAnimal switch
+            {
+                eClassificationAnimal.Carnivores => eFavoriteFood.Meat,
+                eClassificationAnimal.Herbivores => eFavoriteFood.Plants,
+                _ => eFavoriteFood.Everything
+            };
+        }
+
+        // Метод SayHello выводит приветствие с именем животного
+        public void SayHello()
+        {
+            Console.WriteLine($"Hello, I'm {Name}!");
+        }
+    }
+}
+MyAttribute.cs
+// Пространство имен Lab07_Library
+namespace Lab07_Library
+{
+    // Определение класса MyComment, наследующего от базового класса Attribute
+    public class MyComment : Attribute
+    {
+        // Свойство Comment, представляющее комментарий
+        public string Comment { get; }
+
+        // Публичный конструктор по умолчанию
+        public MyComment() { }
+        // Публичный конструктор с параметром, устанавливающий значение свойства Comment
+        public MyComment(string comment) => Comment = comment;
+    }
+}
+EclassificationAnimals.cs
+// Пространство имен Lab07_Library
+namespace Lab07_Library
+{
+    // Атрибут MyComment, примененный к перечислению, содержит комментарий "Animals classification"
+    [MyComment("Animals classification")]
+    // Перечисление eClassificationAnimal
+    public enum eClassificationAnimal
+    {
+        // Элементы перечисления представляют классификацию животных: травоядные, хищники, всеядные
+        Herbivores,
+        Carnivores,
+        Omnivores
+    }
+}
+
+            // Создание XML-документа и сохранение его в файл
+            XDocument xDocument = new XDocument(program);
+            xDocument.Save(@"C:\Users\vanil\source\repos\Lab 07\Lab7.xml");
+        }
+    }
+}
